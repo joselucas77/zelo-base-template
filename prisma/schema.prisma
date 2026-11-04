@@ -1,0 +1,78 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/prisma"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String?   @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users        User[]
+  accessGroups AccessGroup[]
+  auditLogs    AuditLog[]
+}
+
+model AccessGroup {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  permissions Json      @default("{}")
+  tenantId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  active        Boolean   @default(true)
+  tenantId      String
+  accessGroupId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accessGroup AccessGroup? @relation(fields: [accessGroupId], references: [id], onDelete: SetNull)
+  auditLogs   AuditLog[]
+
+  @@index([tenantId])
+  @@index([accessGroupId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  userId    String?
+  tenantId  String?
+  createdAt DateTime @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
